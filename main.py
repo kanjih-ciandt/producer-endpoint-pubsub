@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 import endpoints
+import datetime
+from random import randint
 
 from protorpc import messages
 from protorpc import remote
@@ -135,13 +137,75 @@ class LoadPubSubApi(remote.Service):
         topic = publisher.topic(request.topic)
 
         for x in xrange(request.numberOfMessage):
-            topic.publish(query.jsonMsg)
-            print "Published messages"
+            msg = self._processDinamycFields(query.jsonMsg)
 
+            print  msg
 
-
+            topic.publish(msg)
 
         return DefaultResponse(content="Published messages.")
+
+
+
+    def _processDinamycFields(self, jsonMsg):
+        while jsonMsg.find('$RANDOM:DATE_GMT') > 0:
+            t = datetime.datetime.today()
+            data = "{} {}:{:0>2d}.{:0>4d} GMT".format(t.date(), t.hour, randint(0, t.minute), randint(0, 59),
+                                                      randint(0, 3000))
+            jsonMsg = jsonMsg.replace('$RANDOM:DATE_GMT', data, 1)
+
+        while jsonMsg.find('$RANDOM:ID') > 0:
+            t = datetime.datetime.today()
+            data = "{:0>3d}".format(randint(0, 999))
+            jsonMsg = jsonMsg.replace('$RANDOM:ID', data, 1)
+
+        while jsonMsg.find('$RANDOM:NBR') > 0:
+            t = datetime.datetime.today()
+            data = "{:0>8d}".format(randint(0, 99999999))
+            jsonMsg = jsonMsg.replace('$RANDOM:NBR', data, 1)
+
+        while jsonMsg.find('$RANDOM:QTDY') > 0:
+            t = datetime.datetime.today()
+            data = "{:0>2d}".format(randint(0, 999))
+            jsonMsg = jsonMsg.replace('$RANDOM:QTDY', data, 1)
+
+        while jsonMsg.find('$RANDOM:DATE') > 0:
+            t = datetime.datetime.today()
+            data = "{} {}:{:0>2d}:{:0>2d}".format(t.date(), t.hour, randint(0, t.minute), randint(0, 59))
+            jsonMsg = jsonMsg.replace('$RANDOM:DATE', data, 1)
+
+        return jsonMsg
+
+
+    @endpoints.method(
+        # This method takes an empty request body.
+        SEND_MSG_RESOURCE,
+        # This method returns an Echo message.
+        DefaultResponse,
+        path='loadpubsub/break',
+        http_method='POST',
+        # Require auth tokens to have the following scopes to access this API.
+        scopes=[endpoints.EMAIL_SCOPE],
+        name='break')
+    def breakMessage(self, request):
+        user = endpoints.get_current_user()
+        # If there's no user defined, the request was unauthenticated, so we
+        # raise 401 Unauthorized.
+        if not user:
+            raise endpoints.UnauthorizedException
+
+        query = ndb.Key(MessageMock, request.messageType).get()
+
+        for x in xrange(request.numberOfMessage):
+            xpto = query.jsonMsg
+
+            print self._processDinamycFields(query.jsonMsg)
+
+
+
+
+
+        return DefaultResponse(content="Done")
 
 # [END echo_api]
 
